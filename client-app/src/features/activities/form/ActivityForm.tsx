@@ -1,18 +1,26 @@
 import { Button, Form, Segment } from "semantic-ui-react";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useStore } from "../../../app/stores/store";
 import { observer } from "mobx-react-lite";
+import { useNavigate, useParams } from "react-router-dom";
+import { Activity } from "../../../app/models/activity";
+import LoadingComponent from "../../../app/layout/LoadingComponent";
+import { v4 as uuid } from "uuid";
 
 const ActivityForm = () => {
   const { activityStore } = useStore();
   const {
-    selectedActivity,
-    closeForm,
     createActivity,
     updateActivity,
     loading,
+    loadActivity,
+    loadingInitial,
   } = activityStore;
-  const initialState = selectedActivity ?? {
+
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [activity, setActivity] = useState<Activity>({
     id: "",
     title: "",
     category: "",
@@ -20,12 +28,21 @@ const ActivityForm = () => {
     date: "",
     city: "",
     venue: "",
-  };
-
-  const [activity, setActivity] = useState(initialState);
+  });
 
   const handleSubmit = () => {
-    activity.id ? updateActivity(activity) : createActivity(activity);
+    if (!activity.id) {
+      activity.id = uuid();
+      createActivity(activity).then(() =>
+        navigate(`/activities/${activity.id}`)
+      );
+    } else {
+      {
+        updateActivity(activity).then(() =>
+          navigate(`/activities/${activity.id}`)
+        );
+      }
+    }
   };
 
   const handleInputChange = (
@@ -34,6 +51,14 @@ const ActivityForm = () => {
     const { name, value } = event.target;
     setActivity({ ...activity, [name]: value });
   };
+
+  useEffect(() => {
+    if (id) {
+      loadActivity(id).then((activity) => setActivity(activity!));
+    }
+  }, [id, loadActivity]);
+
+  if (loadingInitial) return <LoadingComponent content="Loading activity..." />;
 
   return (
     <Segment clearing>
@@ -83,8 +108,8 @@ const ActivityForm = () => {
           content="Submit"
         />
         <Button
+          onClick={() => navigate(-1)}
           floated="right"
-          onClick={closeForm}
           type="button"
           content="Cancel"
         />
